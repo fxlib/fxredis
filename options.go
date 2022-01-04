@@ -48,14 +48,9 @@ type Conf struct {
 	WriteTimeout time.Duration `env:"WRITE_TIMEOUT"`
 }
 
-// ParseEnv will parse environment variables into Redis options. The parsing can be custimized by configuring
-// a prefix.
-func ParseEnv(prefix EnvPrefix) (opts *redis.Options, err error) {
-	var cfg Conf
-	if err = env.Parse(&cfg, env.Options{Prefix: string(prefix)}); err != nil {
-		return nil, fmt.Errorf("failed to parse redis url: %w", err)
-	}
-
+// ConfToOpts can convert a parsed Conf to options. It is exposed in case it is necessary to parse the
+// Conf struct manually.
+func ConfToOpts(cfg Conf) *redis.Options {
 	cfg.URL.MaxRetries = cfg.MaxRetries
 	cfg.URL.MinRetryBackoff = cfg.MinRetryBackoff
 	cfg.URL.MaxRetryBackoff = cfg.MaxRetryBackoff
@@ -63,10 +58,20 @@ func ParseEnv(prefix EnvPrefix) (opts *redis.Options, err error) {
 	cfg.URL.ReadTimeout = cfg.ReadTimeout
 	cfg.URL.WriteTimeout = cfg.WriteTimeout
 	ropts := redis.Options(*cfg.URL)
-	return &ropts, nil
+	return &ropts
 }
 
-// EnvPrefix configures the env prefix
+// ParseEnv will parse environment variables into Redis options. The parsing can be custimized by configuring
+// a prefix.
+func ParseEnv(prefix EnvPrefix) (opts *redis.Options, err error) {
+	var cfg Conf
+	if err = env.Parse(&cfg, env.Options{Prefix: string(prefix)}); err != nil {
+		return nil, fmt.Errorf("failed to parse redis url: %w", err)
+	}
+	return ConfToOpts(cfg), err
+}
+
+// EnvPrefix can be used to declaratively prefix the parsing of Redis env configuration
 type EnvPrefix string
 
 // DefaultEnvPrefix is a common env prefix
