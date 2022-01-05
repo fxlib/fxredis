@@ -125,6 +125,7 @@ func (c *Consumer) handleNextMessage() (err error) {
 
 			if err := c.del.HandleMessage(ctx, stream.Stream, msg.ID, msg.Values); err != nil {
 				c.logs.Error("delegate failed to handle message, skipping ACK",
+					zap.Error(err),
 					zap.String("stream_name", stream.Stream),
 					zap.String("message_id", msg.ID),
 					zap.Any("values", msg.Values))
