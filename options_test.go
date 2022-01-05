@@ -24,7 +24,7 @@ func TestOptionParsing(t *testing.T) {
 	defer os.Unsetenv("REDIS_URL")
 	defer os.Unsetenv("REDIS_MAX_RETRIES")
 
-	opts, err := ParseEnv("REDIS_")
+	opts, err := ParseEnv(DefaultEnvPrefix)
 	require.NoError(t, err)
 	require.Equal(t, "bar:6000", opts.Addr)
 }
@@ -33,6 +33,6 @@ func TestParsingError(t *testing.T) {
 	os.Setenv("REDIS_URL", "redis:/bar:6000")
 	defer os.Unsetenv("REDIS_URL")
 
-	_, err := ParseEnv("REDIS_")
+	_, err := ParseEnv(DefaultEnvPrefix)
 	require.Error(t, err)
 }
