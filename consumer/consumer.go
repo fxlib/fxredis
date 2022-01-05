@@ -99,9 +99,6 @@ func (c *Consumer) handleNextMessage() (err error) {
 		streamarg[i+1] = ">"
 	}
 
-	c.logs.Info("reading next messages",
-		zap.Strings("stream_args", streamarg))
-
 	var res []redis.XStream
 	if res, err = c.rc.XReadGroup(ctx, &redis.XReadGroupArgs{
 		Group:   c.group,
