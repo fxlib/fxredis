@@ -1,4 +1,4 @@
-package stream
+package consumer
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/fx"
@@ -29,11 +30,12 @@ func (f DelegateFunc) HandleMessage(stream, mid string, values map[string]interf
 
 // Consumer pulls entries from a stream, identified as a consumer group.
 type Consumer struct {
-	cfg  ConsumerConf
-	logs *zap.Logger
-	rc   *redis.Client
-	del  Delegate
+	logs  *zap.Logger
+	rc    *redis.Client
+	del   Delegate
+	group string
 
+	opts  Options
 	close uint32
 	done  chan struct{}
 	endbo chan struct{}
@@ -42,30 +44,39 @@ type Consumer struct {
 // NewConsumer inits the consumer
 func NewConsumer(
 	lc fx.Lifecycle,
-	cfg ConsumerConf,
-	del Delegate,
-	rc *redis.Client,
 	logs *zap.Logger,
+	rc *redis.Client,
+	del Delegate,
+	group string,
+	opts ...Option,
 ) (c *Consumer) {
 	c = &Consumer{
-		cfg:  cfg,
-		rc:   rc,
-		logs: logs.With(zap.String("group_name", cfg.GroupName)),
-		del:  del,
-		done: make(chan struct{}, 1), endbo: make(chan struct{}, 1)}
+		rc:    rc,
+		logs:  logs.With(zap.String("group_name", group)),
+		del:   del,
+		group: group,
+		done:  make(chan struct{}, 1), endbo: make(chan struct{}, 1),
+	}
+
+	// defaults as defined through the envDefault tag, then overwrite with any options
+	env.Parse(&c.opts, env.Options{Environment: map[string]string{}})
+	for _, o := range opts {
+		o(&c.opts)
+	}
+
 	lc.Append(fx.Hook{OnStart: c.Start, OnStop: c.Stop})
 	return
 }
 
 // Start the consumer by registering the group if it doesn't exist yet
 func (c *Consumer) Start(ctx context.Context) error {
-	for _, sname := range c.cfg.StreamNames {
+	for _, sname := range c.opts.StreamNames {
 		c.logs.Info("ensuring consumer group exists",
 			zap.String("stream_name", sname))
 
 		// setup the groups and make streams if necessary
 		if err := c.rc.XGroupCreateMkStream(
-			ctx, sname, c.cfg.GroupName, strconv.Itoa(c.cfg.StreamStart),
+			ctx, sname, c.group, strconv.Itoa(c.opts.StreamStart),
 		).Err(); err != nil && strings.Contains(err.Error(), "BUSYGROUP") {
 			c.logs.Info("consumer group already exists, do nothing",
 				zap.String("stream_name", sname))
@@ -80,11 +91,11 @@ func (c *Consumer) Start(ctx context.Context) error {
 
 // handleNextMessage will block and wait until some message is available
 func (c *Consumer) handleNextMessage() (err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), c.cfg.HandleTime)
+	ctx, cancel := context.WithTimeout(context.Background(), c.opts.HandleTime)
 	defer cancel()
 
-	streamarg := make([]string, len(c.cfg.StreamNames)*2)
-	for i, sn := range c.cfg.StreamNames {
+	streamarg := make([]string, len(c.opts.StreamNames)*2)
+	for i, sn := range c.opts.StreamNames {
 		streamarg[i] = sn
 		streamarg[i+1] = ">"
 	}
@@ -94,10 +105,10 @@ func (c *Consumer) handleNextMessage() (err error) {
 
 	var res []redis.XStream
 	if res, err = c.rc.XReadGroup(ctx, &redis.XReadGroupArgs{
-		Group:   c.cfg.GroupName,
+		Group:   c.group,
 		Streams: streamarg,
-		Count:   c.cfg.ReadPerBlock,
-		Block:   c.cfg.BlockTime,
+		Count:   c.opts.ReadPerBlock,
+		Block:   c.opts.BlockTime,
 		NoAck:   false,
 	}).Result(); err != nil && err != redis.Nil {
 		return fmt.Errorf("failed to call XReadGroup: %w", err)
@@ -120,7 +131,7 @@ func (c *Consumer) handleNextMessage() (err error) {
 				continue
 			}
 
-			if err := c.rc.XAck(ctx, stream.Stream, c.cfg.GroupName, msg.ID).Err(); err != nil {
+			if err := c.rc.XAck(ctx, stream.Stream, c.group, msg.ID).Err(); err != nil {
 				return fmt.Errorf("failed to XACk message '%s': %w", msg.ID, err)
 			}
 		}

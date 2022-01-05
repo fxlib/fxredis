@@ -3,6 +3,7 @@ package fxredis
 import (
 	"testing"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
@@ -13,6 +14,7 @@ import (
 func TestClient(t *testing.T) {
 	var rc *redis.Client
 	fxtest.New(t,
+		fx.Supply(env.Options{}),
 		fx.Provide(New, zap.NewDevelopment, ParseEnv),
 		fx.Populate(&rc)).
 		RequireStart().
@@ -38,8 +40,8 @@ func TestMultipleClients(t *testing.T) {
 	defer fxtest.New(t,
 		fx.Populate(&dep1, &clients),
 		fx.Supply(
-			fx.Annotate([]string{"C1_"}, fx.ResultTags(`name:"env_c1"`)),
-			fx.Annotate([]string{"C2_"}, fx.ResultTags(`name:"env_c2"`)),
+			fx.Annotate(env.Options{Prefix: "C1_"}, fx.ResultTags(`name:"env_c1"`)),
+			fx.Annotate(env.Options{Prefix: "C2_"}, fx.ResultTags(`name:"env_c2"`)),
 		),
 		fx.Provide(
 			fx.Annotate(ParseEnv, fx.ParamTags(`name:"env_c1"`), fx.ResultTags(`name:"c1"`)),

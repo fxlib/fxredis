@@ -1,10 +1,10 @@
-package stream
+package consumer
 
 import (
 	"context"
-	"os"
 	"testing"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/fxlib/fxredis"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/require"
@@ -15,16 +15,21 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 )
 
-func TestMultiConsumerEnvParsing(t *testing.T) {
-	os.Setenv("C1_GROUP_NAME", "group1")
-	defer os.Unsetenv("C1_GROUP_NAME")
-	os.Setenv("C1_STREAM_NAMES", "test_stream1")
-	defer os.Unsetenv("C1_STREAM_NAMES")
-	os.Setenv("C2_GROUP_NAME", "group2")
-	defer os.Unsetenv("C2_GROUP_NAME")
-	os.Setenv("C2_STREAM_NAMES", "test_stream1")
-	defer os.Unsetenv("C2_STREAM_NAMES")
+// provideConsumer provides a consumer under the provided name 's', using delegate 'del' and options 'opts'
+func provideConsumer(s string, del Delegate, opts ...Option) fx.Option {
+	return fx.Options(
+		fx.Supply(fx.Annotate(opts, fx.ResultTags(`name:"`+s+`"`))),
+		fx.Supply(fx.Annotate(s, fx.ResultTags(`name:"`+s+`_group_name"`))),
+		fx.Supply(fx.Annotate(del, fx.ResultTags(`name:"`+s+`"`), fx.As(new(Delegate)))),
+		fx.Provide(
+			fx.Annotate(NewConsumer,
+				fx.ParamTags(``, ``, ``, `name:"`+s+`"`, `name:"`+s+`_group_name"`, `name:"`+s+`"`),
+				fx.ResultTags(`name:"`+s+`"`)),
+		),
+	)
+}
 
+func TestMultipleConsumerDI(t *testing.T) {
 	delc := make(chan string, 255)
 	del1, del2 :=
 		DelegateFunc(func(stream, mid string, values map[string]interface{}) error { delc <- mid; return nil }),
@@ -36,26 +41,16 @@ func TestMultiConsumerEnvParsing(t *testing.T) {
 		C2 *Consumer `name:"c2"`
 	}
 
-	// Use fx to setup two consumers with separate delegates
 	defer fxtest.New(t,
-		fx.Provide(zap.NewDevelopment, fxredis.New, fxredis.ParseEnv),
-		fx.Supply(fx.Annotate(del1, fx.ResultTags(`name:"c1"`), fx.As(new(Delegate)))),
-		fx.Supply(fx.Annotate(del2, fx.ResultTags(`name:"c2"`), fx.As(new(Delegate)))),
-		fx.Supply(fx.Annotate([]string{"C1_"}, fx.ResultTags(`name:"c1_env_prefix"`))),
-		fx.Supply(fx.Annotate([]string{"C2_"}, fx.ResultTags(`name:"c2_env_prefix"`))),
-		fx.Provide(
-			fx.Annotate(ParseConsumerEnv, fx.ResultTags(`name:"c1"`), fx.ParamTags(`name:"c1_env_prefix"`)),
-			fx.Annotate(NewConsumer, fx.ParamTags(``, `name:"c1"`, `name:"c1"`), fx.ResultTags(`name:"c1"`)),
-		),
-		fx.Provide(
-			fx.Annotate(ParseConsumerEnv, fx.ResultTags(`name:"c2"`), fx.ParamTags(`name:"c2_env_prefix"`)),
-			fx.Annotate(NewConsumer, fx.ParamTags(``, `name:"c2"`, `name:"c2"`), fx.ResultTags(`name:"c2"`)),
-		),
+		fx.Supply(env.Options{}),
 		fx.Populate(&cs, &rc),
+		fx.Provide(zap.NewDevelopment, fxredis.New, fxredis.ParseEnv),
+		provideConsumer("c1", del1, StreamNames("test_stream1")),
+		provideConsumer("c2", del2, StreamNames("test_stream1")),
 	).RequireStart().RequireStop()
 
-	require.Equal(t, "group1", cs.C1.cfg.GroupName)
-	require.Equal(t, "group2", cs.C2.cfg.GroupName)
+	require.Equal(t, "c1", cs.C1.group)
+	require.Equal(t, "c2", cs.C2.group)
 
 	ctx := context.Background()
 	t.Run("xadd to stream should result in both delegates being called", func(t *testing.T) {
@@ -77,15 +72,16 @@ func TestMultiConsumerEnvParsing(t *testing.T) {
 }
 
 func TestFailingConsumer(t *testing.T) {
-	os.Setenv("GROUP_NAME", "") // this will cause the consumer to always fail reading
-	defer os.Unsetenv("GROUP_NAME")
-
 	zc, obs := observer.New(zap.DebugLevel)
 
 	del := DelegateFunc(func(stream, mid string, values map[string]interface{}) error { return nil })
 	var csm *Consumer
 	fxtest.New(t,
-		fx.Provide(fxredis.New, fxredis.ParseEnv, ParseConsumerEnv, NewConsumer, zap.New),
+		fx.Supply(env.Options{}),
+		fx.Supply([]Option{}),
+		fx.Supply(fx.Annotate("", fx.ResultTags(`name:"group_name"`))),
+		fx.Provide(fxredis.New, fxredis.ParseEnv, zap.New),
+		fx.Provide(fx.Annotate(NewConsumer, fx.ParamTags(``, ``, ``, ``, `name:"group_name"`))),
 		fx.Supply(fx.Annotate(zc, fx.As(new(zapcore.Core)))),
 		fx.Supply(fx.Annotate(del, fx.As(new(Delegate)))),
 		fx.Populate(&csm),
