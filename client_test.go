@@ -14,7 +14,6 @@ func TestClient(t *testing.T) {
 	var rc *redis.Client
 	fxtest.New(t,
 		fx.Provide(New, zap.NewDevelopment, ParseEnv),
-		fx.Supply(DefaultEnvPrefix),
 		fx.Populate(&rc)).
 		RequireStart().
 		RequireStop()
@@ -39,12 +38,12 @@ func TestMultipleClients(t *testing.T) {
 	defer fxtest.New(t,
 		fx.Populate(&dep1, &clients),
 		fx.Supply(
-			fx.Annotate(EnvPrefix("C1"), fx.ResultTags(`name:"c1"`)),
-			fx.Annotate(EnvPrefix("C2"), fx.ResultTags(`name:"c2"`)),
+			fx.Annotate([]string{"C1_"}, fx.ResultTags(`name:"env_c1"`)),
+			fx.Annotate([]string{"C2_"}, fx.ResultTags(`name:"env_c2"`)),
 		),
 		fx.Provide(
-			fx.Annotate(ParseEnv, fx.ParamTags(`name:"c1"`), fx.ResultTags(`name:"c1"`)),
-			fx.Annotate(ParseEnv, fx.ParamTags(`name:"c1"`), fx.ResultTags(`name:"c2"`)),
+			fx.Annotate(ParseEnv, fx.ParamTags(`name:"env_c1"`), fx.ResultTags(`name:"c1"`)),
+			fx.Annotate(ParseEnv, fx.ParamTags(`name:"env_c2"`), fx.ResultTags(`name:"c2"`)),
 			fx.Annotate(New, fx.ParamTags(``, `name:"c1"`), fx.ResultTags(`name:"c1"`)),
 			fx.Annotate(New, fx.ParamTags(``, `name:"c2"`), fx.ResultTags(`name:"c2"`)),
 			fx.Annotate(newMultiConnTest, fx.ParamTags(`name:"c1"`, `name:"c2"`)),

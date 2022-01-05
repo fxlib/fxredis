@@ -63,16 +63,14 @@ func ConfToOpts(cfg Conf) *redis.Options {
 
 // ParseEnv will parse environment variables into Redis options. The parsing can be custimized by configuring
 // a prefix.
-func ParseEnv(prefix EnvPrefix) (opts *redis.Options, err error) {
+func ParseEnv(prefix ...string) (opts *redis.Options, err error) {
 	var cfg Conf
-	if err = env.Parse(&cfg, env.Options{Prefix: string(prefix)}); err != nil {
+	var eopts env.Options
+	if len(prefix) > 0 {
+		eopts.Prefix = string(prefix[0])
+	}
+	if err = env.Parse(&cfg, eopts); err != nil {
 		return nil, fmt.Errorf("failed to parse redis url: %w", err)
 	}
 	return ConfToOpts(cfg), err
 }
-
-// EnvPrefix can be used to declaratively prefix the parsing of Redis env configuration
-type EnvPrefix string
-
-// DefaultEnvPrefix is a common env prefix
-var DefaultEnvPrefix EnvPrefix = "REDIS_"
