@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/caarlos0/env/v6 v6.9.1
+	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/fx v1.16.0
