@@ -22,7 +22,7 @@ func provideConsumer(s string, del Delegate, opts ...Option) fx.Option {
 		fx.Supply(fx.Annotate(s, fx.ResultTags(`name:"`+s+`_group_name"`))),
 		fx.Supply(fx.Annotate(del, fx.ResultTags(`name:"`+s+`"`), fx.As(new(Delegate)))),
 		fx.Provide(
-			fx.Annotate(NewConsumer,
+			fx.Annotate(New,
 				fx.ParamTags(``, ``, ``, `name:"`+s+`"`, `name:"`+s+`_group_name"`, `name:"`+s+`"`),
 				fx.ResultTags(`name:"`+s+`"`)),
 		),
@@ -81,7 +81,7 @@ func TestFailingConsumer(t *testing.T) {
 		fx.Supply([]Option{}),
 		fx.Supply(fx.Annotate("", fx.ResultTags(`name:"group_name"`))),
 		fx.Provide(fxredis.New, fxredis.ParseEnv, zap.New),
-		fx.Provide(fx.Annotate(NewConsumer, fx.ParamTags(``, ``, ``, ``, `name:"group_name"`))),
+		fx.Provide(fx.Annotate(New, fx.ParamTags(``, ``, ``, ``, `name:"group_name"`))),
 		fx.Supply(fx.Annotate(zc, fx.As(new(zapcore.Core)))),
 		fx.Supply(fx.Annotate(del, fx.As(new(Delegate)))),
 		fx.Populate(&csm),

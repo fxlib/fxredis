@@ -41,8 +41,8 @@ type Consumer struct {
 	endbo chan struct{}
 }
 
-// NewConsumer inits the consumer
-func NewConsumer(
+// New inits the consumer
+func New(
 	lc fx.Lifecycle,
 	logs *zap.Logger,
 	rc *redis.Client,

@@ -29,12 +29,12 @@ func TestDefaultOptions(t *testing.T) {
 	lc := fxtest.NewLifecycle(t)
 
 	t.Run("without options should have default from env struct tags", func(t *testing.T) {
-		c := NewConsumer(lc, logs, nil, nil, "foo")
+		c := New(lc, logs, nil, nil, "foo")
 		require.Equal(t, time.Second, c.opts.BlockTime)
 	})
 
 	t.Run("but options should overwrite this", func(t *testing.T) {
-		c := NewConsumer(lc, logs, nil, nil, "foo", BlockTime(time.Second*3))
+		c := New(lc, logs, nil, nil, "foo", BlockTime(time.Second*3))
 		require.Equal(t, time.Second*3, c.opts.BlockTime)
 	})
 }
