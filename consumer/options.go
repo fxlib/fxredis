@@ -16,7 +16,7 @@ func ParseEnv(eo env.Options) (opts []Option, err error) {
 // Options for the consumer with env keys configured
 type Options struct {
 	StreamNames  []string      `env:"STREAM_NAMES"`
-	StreamStart  int           `env:"STREAM_START"`
+	StreamStart  string        `env:"STREAM_START" envDefault:"$"`
 	BlockTime    time.Duration `env:"BLOCK_TIME" envDefault:"1s"`
 	ReadPerBlock int64         `env:"READ_PER_BLOCK" envDefault:"2"`
 	HandleTime   time.Duration `env:"HANDLE_TIME" envDefault:"10s"`
@@ -31,7 +31,7 @@ func StreamNames(v ...string) Option {
 }
 
 // StreamStart will determine at which index the consumer starts
-func StreamStart(v int) Option {
+func StreamStart(v string) Option {
 	return func(c *Options) { c.StreamStart = v }
 }
 

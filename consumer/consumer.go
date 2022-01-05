@@ -3,7 +3,6 @@ package consumer
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -76,7 +75,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 
 		// setup the groups and make streams if necessary
 		if err := c.rc.XGroupCreateMkStream(
-			ctx, sname, c.group, strconv.Itoa(c.opts.StreamStart),
+			ctx, sname, c.group, c.opts.StreamStart,
 		).Err(); err != nil && strings.Contains(err.Error(), "BUSYGROUP") {
 			c.logs.Info("consumer group already exists, do nothing",
 				zap.String("stream_name", sname))

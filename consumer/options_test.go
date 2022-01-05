@@ -43,7 +43,7 @@ func TestOptions(t *testing.T) {
 	var opts Options
 	for _, o := range []Option{
 		StreamNames("foo", "bar"),
-		StreamStart(100),
+		StreamStart("100"),
 		ReadPerBlock(4),
 		HandleTime(time.Second * 40),
 	} {
@@ -52,7 +52,7 @@ func TestOptions(t *testing.T) {
 
 	require.Equal(t, Options{
 		StreamNames:  []string{"foo", "bar"},
-		StreamStart:  100,
+		StreamStart:  "100",
 		ReadPerBlock: 4,
 		HandleTime:   time.Second * 40,
 	}, opts)
