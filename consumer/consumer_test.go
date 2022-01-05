@@ -32,8 +32,14 @@ func provideConsumer(s string, del Delegate, opts ...Option) fx.Option {
 func TestMultipleConsumerDI(t *testing.T) {
 	delc := make(chan string, 255)
 	del1, del2 :=
-		DelegateFunc(func(stream, mid string, values map[string]interface{}) error { delc <- mid; return nil }),
-		DelegateFunc(func(stream, mid string, values map[string]interface{}) error { delc <- mid; return nil })
+		DelegateFunc(func(ctx context.Context, stream, mid string, values map[string]interface{}) error {
+			delc <- mid
+			return nil
+		}),
+		DelegateFunc(func(ctx context.Context, stream, mid string, values map[string]interface{}) error {
+			delc <- mid
+			return nil
+		})
 	var rc *redis.Client
 	var cs struct {
 		fx.In
@@ -74,7 +80,7 @@ func TestMultipleConsumerDI(t *testing.T) {
 func TestFailingConsumer(t *testing.T) {
 	zc, obs := observer.New(zap.DebugLevel)
 
-	del := DelegateFunc(func(stream, mid string, values map[string]interface{}) error { return nil })
+	del := DelegateFunc(func(ctx context.Context, stream, mid string, values map[string]interface{}) error { return nil })
 	var csm *Consumer
 	fxtest.New(t,
 		fx.Supply(env.Options{}),

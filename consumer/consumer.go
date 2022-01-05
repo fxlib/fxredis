@@ -17,15 +17,15 @@ import (
 
 // Delegate is provided to a consumer to handle an entry
 type Delegate interface {
-	HandleMessage(stream, mid string, values map[string]interface{}) error
+	HandleMessage(ctx context.Context, stream, mid string, values map[string]interface{}) error
 }
 
 // DelegateFunc implements the delegate
-type DelegateFunc func(stream, mid string, values map[string]interface{}) error
+type DelegateFunc func(ctx context.Context, stream, mid string, values map[string]interface{}) error
 
 // HandleMessage is called by the consumer to handle the entry
-func (f DelegateFunc) HandleMessage(stream, mid string, values map[string]interface{}) error {
-	return f(stream, mid, values)
+func (f DelegateFunc) HandleMessage(ctx context.Context, stream, mid string, values map[string]interface{}) error {
+	return f(ctx, stream, mid, values)
 }
 
 // Consumer pulls entries from a stream, identified as a consumer group.
@@ -123,7 +123,7 @@ func (c *Consumer) handleNextMessage() (err error) {
 				zap.String("message_id", msg.ID),
 				zap.Any("values", msg.Values))
 
-			if err := c.del.HandleMessage(stream.Stream, msg.ID, msg.Values); err != nil {
+			if err := c.del.HandleMessage(ctx, stream.Stream, msg.ID, msg.Values); err != nil {
 				c.logs.Error("delegate failed to handle message, skipping ACK",
 					zap.String("stream_name", stream.Stream),
 					zap.String("message_id", msg.ID),
