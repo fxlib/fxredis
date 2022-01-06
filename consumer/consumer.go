@@ -99,14 +99,19 @@ func (c *Consumer) handleNextMessage() (err error) {
 		streamarg[i+1] = ">"
 	}
 
-	var res []redis.XStream
-	if res, err = c.rc.XReadGroup(ctx, &redis.XReadGroupArgs{
+	args := &redis.XReadGroupArgs{
 		Group:   c.group,
 		Streams: streamarg,
 		Count:   c.opts.ReadPerBlock,
 		Block:   c.opts.BlockTime,
 		NoAck:   false,
-	}).Result(); err != nil && err != redis.Nil {
+	}
+
+	res, err := c.rc.XReadGroup(ctx, args).Result()
+	c.logs.Debug("called bocking XReadGroup",
+		zap.Error(err), zap.Int("res_len", len(res)), zap.Any("args", args))
+
+	if err != nil && err != redis.Nil {
 		return fmt.Errorf("failed to call XReadGroup: %w", err)
 	}
 
