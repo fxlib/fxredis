@@ -46,6 +46,9 @@ type Conf struct {
 	// with a timeout instead of blocking.
 	// Default is ReadTimeout.
 	WriteTimeout time.Duration `env:"WRITE_TIMEOUT"`
+	// TLSSkipVerify will force the client to not check the hostname
+	// of the redis server.
+	TLSSkipVerify bool `env:"TLS_SKIP_VERIFY"`
 }
 
 // ConfToOpts can convert a parsed Conf to options. It is exposed in case it is necessary to parse the
@@ -58,6 +61,9 @@ func ConfToOpts(cfg Conf) *redis.Options {
 	cfg.URL.ReadTimeout = cfg.ReadTimeout
 	cfg.URL.WriteTimeout = cfg.WriteTimeout
 	ropts := redis.Options(*cfg.URL)
+	if ropts.TLSConfig != nil && cfg.TLSSkipVerify {
+		ropts.TLSConfig.InsecureSkipVerify = true
+	}
 	return &ropts
 }
 
