@@ -69,6 +69,12 @@ func New(
 
 // Start the consumer by registering the group if it doesn't exist yet
 func (c *Consumer) Start(ctx context.Context) error {
+	c.createConsumerGroup(ctx)
+	go c.handleMessages()
+	return nil
+}
+
+func (c *Consumer) createConsumerGroup(ctx context.Context) {
 	for _, sname := range c.opts.StreamNames {
 		c.logs.Info("ensuring consumer group exists",
 			zap.String("stream_name", sname))
@@ -80,12 +86,12 @@ func (c *Consumer) Start(ctx context.Context) error {
 			c.logs.Info("consumer group already exists, do nothing",
 				zap.String("stream_name", sname))
 		} else if err != nil {
-			return fmt.Errorf("failed to ensure consume group exists: %w", err)
+			c.logs.Error("failed to ensure consume group exists",
+				zap.Error(err),
+				zap.String("stream_name", sname),
+			)
 		}
 	}
-
-	go c.handleMessages()
-	return nil
 }
 
 // handleNextMessage will block and wait until some message is available
@@ -156,6 +162,11 @@ func (c *Consumer) handleMessages() {
 
 			bo.Reset()
 			continue //ok, continue without delay
+		}
+
+		if err != nil && strings.Contains(err.Error(), "NOGROUP") {
+			c.createConsumerGroup(context.Background())
+			continue
 		}
 
 		// backoff if we retry too quickly
