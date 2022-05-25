@@ -19,7 +19,7 @@ type Options struct {
 	StreamStart  string        `env:"STREAM_START" envDefault:"$"`
 	BlockTime    time.Duration `env:"BLOCK_TIME" envDefault:"1s"`
 	ReadPerBlock int64         `env:"READ_PER_BLOCK" envDefault:"2"`
-	HandleTime   time.Duration `env:"HANDLE_TIME" envDefault:"10s"`
+	HandleTime   time.Duration `env:"HANDLE_TIME" envDefault:"300s"`
 }
 
 // Option configures the consumer
